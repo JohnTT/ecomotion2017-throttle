@@ -39,6 +39,7 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+#include <throttle.h>
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -52,18 +53,6 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-typedef enum {
-	CAN_PACKET_SET_DUTY = 0,
-	CAN_PACKET_SET_CURRENT,
-	CAN_PACKET_SET_CURRENT_BRAKE,
-	CAN_PACKET_SET_RPM,
-	CAN_PACKET_SET_POS,
-	CAN_PACKET_FILL_RX_BUFFER,
-	CAN_PACKET_FILL_RX_BUFFER_LONG,
-	CAN_PACKET_PROCESS_RX_BUFFER,
-	CAN_PACKET_PROCESS_SHORT_BUFFER,
-	CAN_PACKET_STATUS
-} CAN_PACKET_ID;
 static float DIAMETER = 0.50; //50 cm diameter
 static float PI = 3.1415926535; //the number pi
 static int CLOCKSPEED = 12000; //timer's clock
@@ -103,15 +92,6 @@ static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 //extern void initialise_monitor_handles(void);
-void uprint(char *msg);
-static void setCANbitRate(uint16_t bitRate, uint16_t periphClock, CAN_HandleTypeDef* theHcan);
-char *itoa(int value, char *result, int base);
-int getTim1Prescaler();
-void speedCalc(int clockSpeed, float wheelDiameter, int compareVal, float* rpmVal, float* speedVal);
-double convertToERPM(int ADCIn);
-double convertToCurrent(int ADCIn);
-void buffer_append_int32(uint8_t* buffer, int32_t number, int32_t *index);
-void buffer_append_uint32(uint8_t* buffer, uint32_t number, int32_t *index);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -161,15 +141,15 @@ int main(void)
   while(1){
 	  send_index = 0;
 //	  counter = __HAL_TIM_GetCounter(&htim1); //read TIM1 counter value
-	  uprint("Analog value: ");
-	  uprint(itoa(analog, c, 10));
-	  uprint("\n\r");
+	  printf("Analog value: ");
+	  printf(itoa(analog, c, 10));
+	  printf("\n\r");
 	  ERPM = convertToERPM(analog) + 800;
 	  //ERPM_i = floor(ERPM);
 	  buffer_append_int32(&buffer, (uint32_t)(ERPM), &send_index);
-	  uprint("Motor Rpm value: ");
-	  uprint(itoa(ERPM, c, 10));
-	  uprint("\n\r");
+	  printf("Motor Rpm value: ");
+	  printf(itoa(ERPM, c, 10));
+	  printf("\n\r");
 	  //HAL_StatusTypeDef adcStatus;
   	  HAL_StatusTypeDef status;
   	  hcan1.pTxMsg->IDE = CAN_ID_EXT;
@@ -438,13 +418,13 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hcan) {
-	uprint("Message Sent Successfully:");
-	uprint("\n\r");
+	printf("Message Sent Successfully:");
+	printf("\n\r");
 }
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
-	uprint("Message Received by:");
-	uprint(itoa(hcan->pRxMsg->StdId, c, 10));
-	uprint("\n\r");
+	printf("Message Received by:");
+	printf(itoa(hcan->pRxMsg->StdId, c, 10));
+	printf("\n\r");
 	if (hcan->pRxMsg->StdId == 0x124) {
 		//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, hcan->pRxMsg->Data[0]);
 		//printf("Good stuff");
@@ -479,9 +459,9 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 			tim1Ch2Overflow = 0; //reset the overflow bit, since we capture-compared
 			tim1Ch2Capture = HAL_TIM_ReadCapturedValue(&htim1, TIM_CHANNEL_1); //read TIM1 channel 1 capture value for the next Compare
 		}
-		uprint("Captured Tim1 Value:");
-		uprint(itoa(tim1Ch1Compare, c, 10));
-		uprint("\n\r");
+		printf("Captured Tim1 Value:");
+		printf(itoa(tim1Ch1Compare, c, 10));
+		printf("\n\r");
 		speedCalc(CLOCKSPEED, DIAMETER, tim1Ch1Compare, &rpmChan1, &speedChan1);
 		//__HAL_TIM_SetCounter(htim, 0); //resets the counter after input capture interrupt occurs
 	}
@@ -498,14 +478,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){//for counter update
 	}
 
 }
+void HAL_ADC_ErrorCallback(ADC_HandleTypeDef* hadc){
+	//do something, maybe
+}
 int getTim1Prescaler(){
 	return HAL_RCC_GetPCLK2Freq() / 5000; //since it is multiplied by 2
-}
-//void HAL_ADC_ErrorCallback(){
-//	//do something, maybe
-//}
-void uprint(char *msg){
-	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 0xFFFF);
 }
 static void setCANbitRate(uint16_t bitRate, uint16_t periphClock, CAN_HandleTypeDef* theHcan) {
 	uint8_t prescaleFactor = 0;
@@ -593,12 +570,12 @@ void speedCalc(int clockSpeed, float wheelDiameter, int compareVal, float* rpmVa
 	*rpmVal = (clockSpeed*1.0) / (compareVal* 2.0) * 60; //revs per min
 	*speedVal = (*rpmVal * 2 * PI * wheelDiameter) / 60; //speedChan1, in m/s
 	*speedVal = (*speedVal * 3.6); //speedChan1, in km/h
-	uprint("Revs per min: ");
-	uprint(itoa(*rpmVal, c, 10));
-	uprint("\n\r");
-	uprint("Real Speed: ");
-	uprint(itoa(*speedVal, c, 10));
-	uprint("\n\r");
+	printf("Revs per min: ");
+	printf(itoa(*rpmVal, c, 10));
+	printf("\n\r");
+	printf("Real Speed: ");
+	printf(itoa(*speedVal, c, 10));
+	printf("\n\r");
 }
 void buffer_append_int32(uint8_t* buffer, int32_t number, int32_t *index) {
         buffer[(*index)++] = (uint8_t)((number >> 24) & 0xFF);
@@ -643,7 +620,6 @@ double convertToCurrent(int ADCIn)
 void __io_putchar(uint8_t ch) { //printf function for USART
 	HAL_UART_Transmit(&huart2, &ch, 1, 1);
 }
-
 static void MX_CAN1_Init(void)
 {
 	__HAL_RCC_CAN1_CLK_ENABLE();
@@ -693,7 +669,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
-	uprint("PROBLEMS!\n\r");
+	printf("PROBLEMS!\n\r");
 	while(1)
   {
   }
