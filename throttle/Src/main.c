@@ -39,7 +39,7 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
-#include <throttle.h>
+#include "throttle.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -55,7 +55,7 @@ UART_HandleTypeDef huart2;
 /* Private variables ---------------------------------------------------------*/
 static float DIAMETER = 0.50; //50 cm diameter
 static float PI = 3.1415926535; //the number pi
-static int CLOCKSPEED = 12000; //timer's clock
+static int CLOCKSPEED = 20000; //timer's clock
 static const float ADCMAX = 4095.0;
 static const int EXPMINADCIN = 1100;
 static const int EXPMAXADCIN = 3000;
@@ -68,14 +68,14 @@ float speedChan1; //holds the car's speed from tim1 channel 1
 //float speedChan2; //holds the car's speed from tim1 channel 2
 int ADCScalingFactor; //should be constant
 double NORMALFACTOR; //should be constant
-int counter; //holds tim1 clock
-int analog; //holds the analog value for hadc1
-int tim1Ch1Capture = 70000; //holds the last value from tim1 channel 1
-int tim1Ch1Compare; //holds the compared value from tim1 channel 1
-int tim1Ch1Overflow; //holds the overflow bit for channel 1 when the tim1 clock resets to 0
-int tim1Ch2Capture = 70000; //holds the last value from tim1 channel 2
-int tim1Ch2Compare; //holds the compared value from tim1 channel 2
-int tim1Ch2Overflow; //holds the overflow bit for channel 2 when the tim1 clock resets to 0
+unsigned int counter; //holds tim1 clock
+unsigned int analog; //holds the analog value for hadc1
+unsigned int tim1Ch1Capture = 70000; //holds the last value from tim1 channel 1
+unsigned int tim1Ch1Compare; //holds the compared value from tim1 channel 1
+unsigned int tim1Ch1Overflow; //holds the overflow bit for channel 1 when the tim1 clock resets to 0
+unsigned int tim1Ch2Capture = 70000; //holds the last value from tim1 channel 2
+unsigned int tim1Ch2Compare; //holds the compared value from tim1 channel 2
+unsigned int tim1Ch2Overflow; //holds the overflow bit for channel 2 when the tim1 clock resets to 0
 char c[10]; //holds string values
 int blinky = 0; //does stuff
 /* USER CODE END PV */
@@ -123,49 +123,52 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_ADC1_Init();
-  MX_CAN1_Init();
+//  MX_ADC1_Init();
+ // MX_CAN1_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
   HAL_ADC_Start_IT(&hadc1); //commence the ADC for interrupt calculations
-//  HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); //look into peripheral control functions to find out more about configuration
+  HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); //look into peripheral control functions to find out more about configuration
   //HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2); //start timer channel 2 for update interrupts
-//  HAL_TIM_Base_Start_IT(&htim1); //start the base for update interrupts
+  HAL_TIM_Base_Start_IT(&htim1); //start the base for update interrupts
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   //initialise_monitor_handles();
+  printf("we Start");
   while(1){
-	  send_index = 0;
-//	  counter = __HAL_TIM_GetCounter(&htim1); //read TIM1 counter value
-	  printf("Analog value: ");
-	  printf(itoa(analog, c, 10));
-	  printf("\n\r");
-	  ERPM = convertToERPM(analog) + 800;
-	  //ERPM_i = floor(ERPM);
-	  buffer_append_int32(&buffer, (uint32_t)(ERPM), &send_index);
-	  printf("Motor Rpm value: ");
-	  printf(itoa(ERPM, c, 10));
-	  printf("\n\r");
-	  //HAL_StatusTypeDef adcStatus;
-  	  HAL_StatusTypeDef status;
-  	  hcan1.pTxMsg->IDE = CAN_ID_EXT;
-  	  hcan1.pTxMsg->RTR = CAN_RTR_DATA;
-      hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_RPM << 8) | controller_id;
-  	  hcan1.pTxMsg->Data[0] = buffer[0];
-  	  hcan1.pTxMsg->Data[1] = buffer[1];
-  	  hcan1.pTxMsg->Data[2] = buffer[2];
-  	  hcan1.pTxMsg->Data[3] = buffer[3];
-  	  //blinky = (blinky + 1) % 2;
-  	  hcan1.pTxMsg->DLC = 4;
-  	  status = HAL_CAN_Transmit_IT(&hcan1);
-  	  if (status != HAL_OK) {
-  		  Error_Handler();
-  	  }
- 	  HAL_Delay(100);
+//	  printf("We loop");
+//	  printf("\n\r");
+	  //HAL_Delay(100);
+//	  send_index = 0;
+//	  printf("Counter value: ");
+//	  printf(itoa(counter, c, 10));
+//	  printf("\n\r");
+//	  ERPM = convertToERPM(analog) + 800;
+//	  //ERPM_i = floor(ERPM);
+//	  buffer_append_int32(&buffer, (uint32_t)(ERPM), &send_index);
+//	  printf("Motor Rpm value: ");
+//	  printf(itoa(ERPM, c, 10));
+//	  printf("\n\r");
+//	  //HAL_StatusTypeDef adcStatus;
+//  	  HAL_StatusTypeDef status;
+//  	  hcan1.pTxMsg->IDE = CAN_ID_EXT;
+//  	  hcan1.pTxMsg->RTR = CAN_RTR_DATA;
+//      hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_RPM << 8) | controller_id;
+//  	  hcan1.pTxMsg->Data[0] = buffer[0];
+//  	  hcan1.pTxMsg->Data[1] = buffer[1];
+//  	  hcan1.pTxMsg->Data[2] = buffer[2];
+//  	  hcan1.pTxMsg->Data[3] = buffer[3];
+//  	  //blinky = (blinky + 1) % 2;
+//  	  hcan1.pTxMsg->DLC = 4;
+//  	  status = HAL_CAN_Transmit_IT(&hcan1);
+//  	  if (status != HAL_OK) {
+//  		  Error_Handler();
+//  	  }
+// 	  HAL_Delay(100);
 
   /* USER CODE END WHILE */
 
@@ -330,7 +333,7 @@ static void MX_TIM1_Init(void)
   TIM_IC_InitTypeDef sConfigIC;
 
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 8000;
+  htim1.Init.Prescaler = getTim1Prescaler();
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 65535;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -435,6 +438,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 	HAL_ADC_Start_IT(hadc);
 }
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
+	counter = __HAL_TIM_GetCounter(&htim1); //read TIM1 counter value
 	if (htim->Instance == TIM1){
 		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){
 			if (tim1Ch1Capture != 70000){//initial capture, should be better initialized
@@ -466,6 +470,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){//for counter update event (wrap back to 0)
 	//put overflow bit stuff here.
 	//HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+	printf("we elapsed");
 	if((tim1Ch1Overflow && tim1Ch1Capture != 70000) || (tim1Ch2Overflow && tim1Ch2Capture != 70000)){
 		Error_Handler();//error handler stuff, nothing for now
 	}
@@ -479,7 +484,7 @@ void HAL_ADC_ErrorCallback(ADC_HandleTypeDef* hadc){
 	//do something, maybe
 }
 int getTim1Prescaler(){
-	return HAL_RCC_GetPCLK2Freq() / 5000; //since it is multiplied by 2
+	return HAL_RCC_GetPCLK2Freq() / 20000; //since it is multiplied by 2
 }
 static void setCANbitRate(uint16_t bitRate, uint16_t periphClock, CAN_HandleTypeDef* theHcan) {
 	uint8_t prescaleFactor = 0;
