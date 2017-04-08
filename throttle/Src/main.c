@@ -1,35 +1,35 @@
 /**
-  ******************************************************************************
-  * File Name          : main.c
-  * Description        : Main program body
-  ******************************************************************************
-  *
-  * COPYRIGHT(c) 2017 STMicroelectronics
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * File Name          : main.c
+ * Description        : Main program body
+ ******************************************************************************
+ *
+ * COPYRIGHT(c) 2017 STMicroelectronics
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *   1. Redistributions of source code must retain the above copyright notice,
+ *      this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright notice,
+ *      this list of conditions and the following disclaimer in the documentation
+ *      and/or other materials provided with the distribution.
+ *   3. Neither the name of STMicroelectronics nor the names of its contributors
+ *      may be used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ ******************************************************************************
+ */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32l4xx_hal.h"
@@ -53,6 +53,8 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+
+
 static float DIAMETER = 0.50; //50 cm diameter
 static float PI = 3.1415926535; //the number pi
 static int CLOCKSPEED = 20000; //timer's clock
@@ -62,6 +64,7 @@ static const int EXPMAXADCIN = 3000;
 static const int CURVEFACTOR = 3;
 static const double MAXRPM = 29200.0;
 static const double MAXCURRENT = 30.0;
+static const double MAXDUTYCYCLE = 60.0;
 float rpmChan1; //revolutions per minute for one of the wheels of the vehicle
 float speedChan1; //holds the car's speed from tim1 channel 1
 //float rpmChan2; //revolutions per minute for the other wheel of the vehicle
@@ -76,18 +79,17 @@ unsigned int tim1Ch1Overflow; //holds the overflow bit for channel 1 when the ti
 unsigned int tim1Ch2Capture = 70000; //holds the last value from tim1 channel 2
 unsigned int tim1Ch2Compare; //holds the compared value from tim1 channel 2
 unsigned int tim1Ch2Overflow; //holds the overflow bit for channel 2 when the tim1 clock resets to 0
-char c[10]; //holds string values
-int blinky = 0; //does stuff
+char str[32]; //holds string values
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
-static void MX_ADC1_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_ADC1_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -101,212 +103,223 @@ static void MX_USART2_UART_Init(void);
 int main(void)
 {
 
-  /* USER CODE BEGIN 1 */
-  double ERPM, current;
-  uint32_t ERPM_i;
-  int32_t send_index = 0;
-  uint8_t buffer[4];
-  uint8_t controller_id = 0xFF;
-  double motorRpm = 0.0;
+	/* USER CODE BEGIN 1 */
+	double Vedder_ERPM, Vedder_Current, Vedder_DutyCycle;
+	int32_t send_index = 0;
+	uint8_t buffer[4];
+	uint8_t controller_id = 0xFF;
 
-  ADCScalingFactor = EXPMAXADCIN - EXPMINADCIN;
-  NORMALFACTOR = exp(CURVEFACTOR);
-  /* USER CODE END 1 */
+	ADCScalingFactor = EXPMAXADCIN - EXPMINADCIN;
+	NORMALFACTOR = exp(CURVEFACTOR);
+	/* USER CODE END 1 */
 
-  /* MCU Configuration----------------------------------------------------------*/
+	/* MCU Configuration----------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-//  MX_ADC1_Init();
- // MX_CAN1_Init();
-  MX_TIM1_Init();
-  MX_USART2_UART_Init();
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_CAN1_Init();
+	MX_TIM1_Init();
+	MX_USART2_UART_Init();
+	MX_ADC1_Init();
 
-  /* USER CODE BEGIN 2 */
-  HAL_ADC_Start_IT(&hadc1); //commence the ADC for interrupt calculations
-  HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); //look into peripheral control functions to find out more about configuration
-  //HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2); //start timer channel 2 for update interrupts
-  HAL_TIM_Base_Start_IT(&htim1); //start the base for update interrupts
-  /* USER CODE END 2 */
+	/* USER CODE BEGIN 2 */
+	HAL_ADC_Start_IT(&hadc1); //commence the ADC for interrupt calculations
+	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); //look into peripheral control functions to find out more about configuration
+	//HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2); //start timer channel 2 for update interrupts
+	HAL_TIM_Base_Start_IT(&htim1); //start the base for update interrupts
+	/* USER CODE END 2 */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  //initialise_monitor_handles();
-  printf("we Start");
-  while(1){
-//	  printf("We loop");
-//	  printf("\n\r");
-	  //HAL_Delay(100);
-//	  send_index = 0;
-//	  printf("Counter value: ");
-//	  printf(itoa(counter, c, 10));
-//	  printf("\n\r");
-//	  ERPM = convertToERPM(analog) + 800;
-//	  //ERPM_i = floor(ERPM);
-//	  buffer_append_int32(&buffer, (uint32_t)(ERPM), &send_index);
-//	  printf("Motor Rpm value: ");
-//	  printf(itoa(ERPM, c, 10));
-//	  printf("\n\r");
-//	  //HAL_StatusTypeDef adcStatus;
-//  	  HAL_StatusTypeDef status;
-//  	  hcan1.pTxMsg->IDE = CAN_ID_EXT;
-//  	  hcan1.pTxMsg->RTR = CAN_RTR_DATA;
-//      hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_RPM << 8) | controller_id;
-//  	  hcan1.pTxMsg->Data[0] = buffer[0];
-//  	  hcan1.pTxMsg->Data[1] = buffer[1];
-//  	  hcan1.pTxMsg->Data[2] = buffer[2];
-//  	  hcan1.pTxMsg->Data[3] = buffer[3];
-//  	  //blinky = (blinky + 1) % 2;
-//  	  hcan1.pTxMsg->DLC = 4;
-//  	  status = HAL_CAN_Transmit_IT(&hcan1);
-//  	  if (status != HAL_OK) {
-//  		  Error_Handler();
-//  	  }
-// 	  HAL_Delay(100);
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+	HAL_Delay(2000);
+	printf("we Start");
+	printf("\n\r");
+	while(1){
+		// Timer Counter
+		//		printf("Counter value: ");
+		//		printf(itoa(counter, c, 10));
+		//		printf("\n\r");
 
-  /* USER CODE END WHILE */
+		HAL_ADC_Start_IT(&hadc1);
+		printf("Analog: ");
+		printf(itoa(analog,str,10));
+		printf("\n\r");
 
-  /* USER CODE BEGIN 3 */
-  }
-  //HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_1); This is the method to call to stop the Input Capture for channel 1 (while using interrupts)
-  //HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_2); This is the method to call to stop the Input Capture for channel 2 (while using interrupts)
-  //HAL_ADC_Stop_IT($hadc1); This is the method to call to stop the Interrupts for the ADC conversion
-  /* USER CODE END 3 */
+		// Convert analog (ADC1) to ERPM
+		Vedder_ERPM = convertToERPM(analog) + 800;
+		printf("Vedder ERPM: ");
+		printf(itoa(Vedder_ERPM,str,10));
+		printf("\n\r");
+		Vedder_DutyCycle = convertToDutyCycle(analog);
+		send_index = 0;
+		buffer_append_int32(&buffer, (uint32_t)(Vedder_DutyCycle), &send_index);
+		//		buffer_append_int32(&buffer, (uint32_t)(Vedder_ERPM), &send_index);
+		printf("Motor Duty Cycle value: ");
+		printf(itoa(Vedder_DutyCycle, str, 10));
+		printf("\n\r");
+
+		// Send ERPM on CAN Bus
+		HAL_StatusTypeDef status;
+		hcan1.pTxMsg->IDE = CAN_ID_STD;
+		hcan1.pTxMsg->RTR = CAN_RTR_DATA;
+		hcan1.pTxMsg->StdId = ecoMotion_Throttle;
+		//hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_DUTY << 8) | controller_id;
+		hcan1.pTxMsg->Data[0] = buffer[0];
+		hcan1.pTxMsg->Data[1] = buffer[1];
+		hcan1.pTxMsg->Data[2] = buffer[2];
+		hcan1.pTxMsg->Data[3] = buffer[3];
+		hcan1.pTxMsg->DLC = 4;
+		status = HAL_CAN_Transmit_IT(&hcan1);
+		if (status != HAL_OK) {
+			printf("CAN Transmit Error");
+			printf("\n\r");
+			Error_Handler();
+		}
+		HAL_Delay(1000);
+
+		/* USER CODE END WHILE */
+
+		/* USER CODE BEGIN 3 */
+	}
+	//HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_1); This is the method to call to stop the Input Capture for channel 1 (while using interrupts)
+	//HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_2); This is the method to call to stop the Input Capture for channel 2 (while using interrupts)
+	//HAL_ADC_Stop_IT($hadc1); This is the method to call to stop the Interrupts for the ADC conversion
+	/* USER CODE END 3 */
 
 }
 
 /** System Clock Configuration
-*/
+ */
 void SystemClock_Config(void)
 {
 
-  RCC_OscInitTypeDef RCC_OscInitStruct;
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_PeriphCLKInitTypeDef PeriphClkInit;
+	RCC_OscInitTypeDef RCC_OscInitStruct;
+	RCC_ClkInitTypeDef RCC_ClkInitStruct;
+	RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
-    /**Initializes the CPU, AHB and APB busses clocks 
-    */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = 16;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 40;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/**Initializes the CPU, AHB and APB busses clocks
+	 */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+	RCC_OscInitStruct.HSICalibrationValue = 16;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+	RCC_OscInitStruct.PLL.PLLM = 4;
+	RCC_OscInitStruct.PLL.PLLN = 36;
+	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
+	RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+	RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-    /**Initializes the CPU, AHB and APB busses clocks 
-    */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+	/**Initializes the CPU, AHB and APB busses clocks
+	 */
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+			|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_ADC;
-  PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-  PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_SYSCLK;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_ADC;
+	PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+	PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_SYSCLK;
+	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-    /**Configure the main internal regulator output voltage 
-    */
-  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/**Configure the main internal regulator output voltage
+	 */
+	if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-    /**Configure the Systick interrupt time 
-    */
-  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
+	/**Configure the Systick interrupt time
+	 */
+	HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
 
-    /**Configure the Systick 
-    */
-  HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
+	/**Configure the Systick
+	 */
+	HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
 
-  /* SysTick_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+	/* SysTick_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
 /* ADC1 init function */
 static void MX_ADC1_Init(void)
 {
 
-  ADC_MultiModeTypeDef multimode;
-  ADC_ChannelConfTypeDef sConfig;
+	ADC_MultiModeTypeDef multimode;
+	ADC_ChannelConfTypeDef sConfig;
 
-    /**Common config 
-    */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV4;
-  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.NbrOfDiscConversion = 1;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc1.Init.OversamplingMode = DISABLE;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/**Common config
+	 */
+	hadc1.Instance = ADC1;
+	hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+	hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+	hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+	hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+	hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+	hadc1.Init.LowPowerAutoWait = DISABLE;
+	hadc1.Init.ContinuousConvMode = DISABLE;
+	hadc1.Init.NbrOfConversion = 1;
+	hadc1.Init.DiscontinuousConvMode = DISABLE;
+	hadc1.Init.NbrOfDiscConversion = 1;
+	hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+	hadc1.Init.DMAContinuousRequests = DISABLE;
+	hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+	hadc1.Init.OversamplingMode = DISABLE;
+	if (HAL_ADC_Init(&hadc1) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-    /**Configure the ADC multi-mode 
-    */
-  multimode.Mode = ADC_MODE_INDEPENDENT;
-  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/**Configure the ADC multi-mode
+	 */
+	multimode.Mode = ADC_MODE_INDEPENDENT;
+	if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-    /**Configure Regular Channel 
-    */
-  sConfig.Channel = ADC_CHANNEL_1;
-  sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/**Configure Regular Channel
+	 */
+	sConfig.Channel = ADC_CHANNEL_5;
+	sConfig.Rank = 1;
+	sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+	sConfig.SingleDiff = ADC_SINGLE_ENDED;
+	sConfig.OffsetNumber = ADC_OFFSET_NONE;
+	sConfig.Offset = 0;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
 }
 
-/* CAN1 init function */
+///* CAN1 init function */
 //static void MX_CAN1_Init(void)
 //{
 //
 //  hcan1.Instance = CAN1;
-//  hcan1.Init.Prescaler = 10;
+//  hcan1.Init.Prescaler = 12;
 //  hcan1.Init.Mode = CAN_MODE_NORMAL;
 //  hcan1.Init.SJW = CAN_SJW_1TQ;
 //  hcan1.Init.BS1 = CAN_BS1_1TQ;
@@ -321,60 +334,59 @@ static void MX_ADC1_Init(void)
 //  {
 //    Error_Handler();
 //  }
-//
 //}
 
 /* TIM1 init function */
 static void MX_TIM1_Init(void)
 {
 
-  TIM_ClockConfigTypeDef sClockSourceConfig;
-  TIM_MasterConfigTypeDef sMasterConfig;
-  TIM_IC_InitTypeDef sConfigIC;
+	TIM_ClockConfigTypeDef sClockSourceConfig;
+	TIM_MasterConfigTypeDef sMasterConfig;
+	TIM_IC_InitTypeDef sConfigIC;
 
-  htim1.Instance = TIM1;
-  htim1.Init.Prescaler = getTim1Prescaler();
-  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 65535;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim1.Init.RepetitionCounter = 0;
-  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	htim1.Instance = TIM1;
+	htim1.Init.Prescaler = 8000;
+	htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim1.Init.Period = 65535;
+	htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	htim1.Init.RepetitionCounter = 0;
+	if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+	if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  if (HAL_TIM_IC_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_TIM_IC_Init(&htim1) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+	sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+	if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 15;
-  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+	sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+	sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+	sConfigIC.ICFilter = 15;
+	if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
 }
 
@@ -382,48 +394,49 @@ static void MX_TIM1_Init(void)
 static void MX_USART2_UART_Init(void)
 {
 
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 38400;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	huart2.Instance = USART2;
+	huart2.Init.BaudRate = 38400;
+	huart2.Init.WordLength = UART_WORDLENGTH_8B;
+	huart2.Init.StopBits = UART_STOPBITS_1;
+	huart2.Init.Parity = UART_PARITY_NONE;
+	huart2.Init.Mode = UART_MODE_TX_RX;
+	huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+	huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+	huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+	if (HAL_UART_Init(&huart2) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
 }
 
 /** Configure pins as 
-        * Analog 
-        * Input 
-        * Output
-        * EVENT_OUT
-        * EXTI
-*/
+ * Analog
+ * Input
+ * Output
+ * EVENT_OUT
+ * EXTI
+ */
 static void MX_GPIO_Init(void)
 {
 
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
+	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOH_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
 
 }
 
 /* USER CODE BEGIN 4 */
 void HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hcan) {
-	printf("Message Sent Successfully:");
+	printf("Message Sent Successfully: ");
 	printf("\n\r");
 }
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
-	printf("Message Received by:");
-	printf(itoa(hcan->pRxMsg->StdId, c, 10));
+	printf("\n\r");
+	printf("Message Received by: ");
+	printf(itoa(hcan->pRxMsg->StdId, str, 10));
 	printf("\n\r");
 	if (hcan->pRxMsg->StdId == 0x124) {
 		//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, hcan->pRxMsg->Data[0]);
@@ -434,8 +447,9 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
 	}
 }
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
+	//printf("we ADC Convert");
 	analog = HAL_ADC_GetValue(hadc);
-	HAL_ADC_Start_IT(hadc);
+	//HAL_ADC_Start_IT(hadc);
 }
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 	counter = __HAL_TIM_GetCounter(&htim1); //read TIM1 counter value
@@ -461,7 +475,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 			tim1Ch2Capture = HAL_TIM_ReadCapturedValue(&htim1, TIM_CHANNEL_1); //read TIM1 channel 1 capture value for the next Compare
 		}
 		printf("Captured Tim1 Value:");
-		printf(itoa(tim1Ch1Compare, c, 10));
+		printf(itoa(tim1Ch1Compare, str, 10));
 		printf("\n\r");
 		speedCalc(CLOCKSPEED, DIAMETER, tim1Ch1Compare, &rpmChan1, &speedChan1);
 		//__HAL_TIM_SetCounter(htim, 0); //resets the counter after input capture interrupt occurs
@@ -481,6 +495,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){//for counter update
 
 }
 void HAL_ADC_ErrorCallback(ADC_HandleTypeDef* hadc){
+	printf("we ADC Error");
 	//do something, maybe
 }
 int getTim1Prescaler(){
@@ -543,82 +558,97 @@ static void setCANbitRate(uint16_t bitRate, uint16_t periphClock, CAN_HandleType
 }
 char *itoa (int value, char *result, int base)
 {
-    // check that the base if valid
-    if (base < 2 || base > 36) {
-        *result = '\0';
-        return result;
-    }
+	// check that the base if valid
+	if (base < 2 || base > 36) {
+		*result = '\0';
+		return result;
+	}
 
-    char* ptr = result, *ptr1 = result, tmp_char;
-    int tmp_value;
+	char* ptr = result, *ptr1 = result, tmp_char;
+	int tmp_value;
 
-    do {
-        tmp_value = value;
-        value /= base;
-        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * base)];
-    } while ( value );
+	do {
+		tmp_value = value;
+		value /= base;
+		*ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * base)];
+	} while ( value );
 
-    // Apply negative sign
-    if (tmp_value < 0) *ptr++ = '-';
-    *ptr-- = '\0';
-    while (ptr1 < ptr) {
-        tmp_char = *ptr;
-        *ptr--= *ptr1;
-        *ptr1++ = tmp_char;
-    }
-    return result;
+	// Apply negative sign
+	if (tmp_value < 0) *ptr++ = '-';
+	*ptr-- = '\0';
+	while (ptr1 < ptr) {
+		tmp_char = *ptr;
+		*ptr--= *ptr1;
+		*ptr1++ = tmp_char;
+	}
+	return result;
 }
 void speedCalc(int clockSpeed, float wheelDiameter, int compareVal, float* rpmVal, float* speedVal){
 	*rpmVal = (clockSpeed*1.0) / (compareVal* 2.0) * 60; //revs per min
 	*speedVal = (*rpmVal * 2 * PI * wheelDiameter) / 60; //speedChan1, in m/s
 	*speedVal = (*speedVal * 3.6); //speedChan1, in km/h
 	printf("Revs per min: ");
-	printf(itoa(*rpmVal, c, 10));
+	printf(itoa(*rpmVal, str, 10));
 	printf("\n\r");
 	printf("Real Speed: ");
-	printf(itoa(*speedVal, c, 10));
+	printf(itoa(*speedVal, str, 10));
 	printf("\n\r");
 }
 void buffer_append_int32(uint8_t* buffer, int32_t number, int32_t *index) {
-        buffer[(*index)++] = (uint8_t)((number >> 24) & 0xFF);
-        buffer[(*index)++] = (uint8_t)((number >> 16) & 0xFF);
-        buffer[(*index)++] = (uint8_t)((number >> 8) & 0xFF);
-        buffer[(*index)++] = (uint8_t)((number) & 0xFF);
+	buffer[(*index)++] = (uint8_t)((number >> 24) & 0xFF);
+	buffer[(*index)++] = (uint8_t)((number >> 16) & 0xFF);
+	buffer[(*index)++] = (uint8_t)((number >> 8) & 0xFF);
+	buffer[(*index)++] = (uint8_t)((number) & 0xFF);
 }
 void buffer_append_uint32(uint8_t* buffer, uint32_t number, int32_t *index) {
-        buffer[(*index)++] = number >> 24;
-        buffer[(*index)++] = number >> 16;
-        buffer[(*index)++] = number >> 8;
-        buffer[(*index)++] = number;
+	buffer[(*index)++] = number >> 24;
+	buffer[(*index)++] = number >> 16;
+	buffer[(*index)++] = number >> 8;
+	buffer[(*index)++] = number;
 }
 double convertToERPM(int ADCIn)
 {
-    int shiftedADCIn = ADCIn - EXPMINADCIN;
-    if (ADCIn < EXPMINADCIN)
-        return 0.0;
-    else if (ADCIn > EXPMAXADCIN)
-        return MAXRPM;
-    double curveOutput = exp(1.0 * CURVEFACTOR * shiftedADCIn / ADCScalingFactor) - 1.0;
-    double normalizedOutput = curveOutput / NORMALFACTOR;
+	int shiftedADCIn = ADCIn - EXPMINADCIN;
+	if (ADCIn < EXPMINADCIN)
+		return 0.0;
+	else if (ADCIn > EXPMAXADCIN)
+		return MAXRPM;
+	double curveOutput = exp(1.0 * CURVEFACTOR * shiftedADCIn / ADCScalingFactor) - 1.0;
+	double normalizedOutput = curveOutput / NORMALFACTOR;
 
-    double ERPM = normalizedOutput * MAXRPM;
+	double ERPM = normalizedOutput * MAXRPM;
 
-    return ERPM;
+	return ERPM;
 }
 double convertToCurrent(int ADCIn)
 {
-    int shiftedADCIn = ADCIn - EXPMINADCIN;
-    if (ADCIn < EXPMINADCIN)
-        return 0.0;
-    else if (ADCIn > EXPMAXADCIN)
-        return MAXCURRENT;
-    double curveOutput = exp(1.0 * CURVEFACTOR * shiftedADCIn / ADCScalingFactor) - 1.0;
-    double normalizedOutput = curveOutput / NORMALFACTOR;
+	int shiftedADCIn = ADCIn - EXPMINADCIN;
+	if (ADCIn < EXPMINADCIN)
+		return 0.0;
+	else if (ADCIn > EXPMAXADCIN)
+		return MAXCURRENT;
+	double curveOutput = exp(1.0 * CURVEFACTOR * shiftedADCIn / ADCScalingFactor) - 1.0;
+	double normalizedOutput = curveOutput / NORMALFACTOR;
 
-    double current = normalizedOutput * MAXCURRENT;
+	double current = normalizedOutput * MAXCURRENT;
 
-    return current;
+	return current;
 }
+double convertToDutyCycle(int ADCIn)
+{
+	int shiftedADCIn = ADCIn - EXPMINADCIN;
+	if (ADCIn < EXPMINADCIN)
+		return 0.0;
+	else if (ADCIn > EXPMAXADCIN)
+		return MAXDUTYCYCLE;
+	double curveOutput = exp(1.0 * CURVEFACTOR * shiftedADCIn / ADCScalingFactor) - 1.0;
+	double normalizedOutput = curveOutput / NORMALFACTOR;
+
+	double current = normalizedOutput * MAXDUTYCYCLE;
+
+	return current;
+}
+
 void __io_putchar(uint8_t ch) { //printf function for USART
 	HAL_UART_Transmit(&huart2, &ch, 1, 1);
 }
@@ -627,7 +657,7 @@ static void MX_CAN1_Init(void)
 	__HAL_RCC_CAN1_CLK_ENABLE();
 	hcan1.Instance = CAN;
 	hcan1.Init.Mode = CAN_MODE_NORMAL;
-	setCANbitRate(1000, 32, &hcan1);
+	setCANbitRate(500, 36, &hcan1);
 	hcan1.Init.TTCM = DISABLE;
 	hcan1.Init.ABOM = DISABLE;
 	hcan1.Init.AWUM = DISABLE;
@@ -663,47 +693,53 @@ static void MX_CAN1_Init(void)
 /* USER CODE END 4 */
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @param  None
-  * @retval None
-  */
+ * @brief  This function is executed in case of error occurrence.
+ * @param  None
+ * @retval None
+ */
 void Error_Handler(void)
 {
-  /* USER CODE BEGIN Error_Handler */
-  /* User can add his own implementation to report the HAL error return state */
-	printf("PROBLEMS!\n\r");
-	while(1)
-  {
-  }
-  /* USER CODE END Error_Handler */ 
+	/* USER CODE BEGIN Error_Handler */
+	/* User can add his own implementation to report the HAL error return state */
+	printf("PROBLEMS!");
+	printf("\n\r");
+	HAL_StatusTypeDef status;
+	do {
+		hcan1.pTxMsg->IDE = CAN_ID_STD;
+		hcan1.pTxMsg->RTR = CAN_RTR_DATA;
+		hcan1.pTxMsg->StdId = ecoMotion_Error - ecoMotion_Throttle;
+		hcan1.pTxMsg->DLC = 0;
+		status = HAL_CAN_Transmit_IT(&hcan1);
+	} while (status != HAL_OK);
+	/* USER CODE END Error_Handler */
 }
 
 #ifdef USE_FULL_ASSERT
 
 /**
-   * @brief Reports the name of the source file and the source line number
-   * where the assert_param error has occurred.
-   * @param file: pointer to the source file name
-   * @param line: assert_param error line source number
-   * @retval None
-   */
+ * @brief Reports the name of the source file and the source line number
+ * where the assert_param error has occurred.
+ * @param file: pointer to the source file name
+ * @param line: assert_param error line source number
+ * @retval None
+ */
 void assert_failed(uint8_t* file, uint32_t line)
 {
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
+	/* USER CODE BEGIN 6 */
+	/* User can add his own implementation to report the file name and line number,
     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
+	/* USER CODE END 6 */
 
 }
 
 #endif
 
 /**
-  * @}
-  */ 
+ * @}
+ */
 
 /**
-  * @}
-*/ 
+ * @}
+ */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

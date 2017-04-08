@@ -20,6 +20,14 @@ typedef enum {
 	CAN_PACKET_PROCESS_SHORT_BUFFER,
 	CAN_PACKET_STATUS
 } CAN_PACKET_ID;
+
+typedef enum {
+	ecoMotion_Throttle = 0x00,
+	ecoMotion_Master = 0x10,
+	ecoMotion_Display = 0x20,
+	ecoMotion_Error = 0xFF
+} CAN_DEVICE_ID;
+
 void HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hcan);
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan);
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc);
@@ -34,6 +42,9 @@ void buffer_append_int32(uint8_t* buffer, int32_t number, int32_t *index);
 void buffer_append_uint32(uint8_t* buffer, uint32_t number, int32_t *index);
 double convertToERPM(int ADCIn);
 double convertToCurrent(int ADCIn);
+double convertToDutyCycle(int ADCIn);
 void __io_putchar(uint8_t ch);
 
+
+static const int CAN_ThrottleID;
 #endif /* THROTTLE_H_ */
