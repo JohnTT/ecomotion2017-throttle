@@ -39,6 +39,7 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+
 #include "throttle.h"
 /* USER CODE END Includes */
 
@@ -124,20 +125,20 @@ int main(void)
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	MX_CAN1_Init();
-	MX_TIM1_Init();
+//	MX_TIM1_Init();
 	MX_USART2_UART_Init();
 	MX_ADC1_Init();
 
 	/* USER CODE BEGIN 2 */
 	HAL_ADC_Start_IT(&hadc1); //commence the ADC for interrupt calculations
-	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); //look into peripheral control functions to find out more about configuration
-	//HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2); //start timer channel 2 for update interrupts
-	HAL_TIM_Base_Start_IT(&htim1); //start the base for update interrupts
+//	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); //look into peripheral control functions to find out more about configuration
+//	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2); //start timer channel 2 for update interrupts
+//	HAL_TIM_Base_Start_IT(&htim1); //start the base for update interrupts
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-	HAL_Delay(2000);
+	HAL_Delay(1000);
 	printf("we Start");
 	printf("\n\r");
 	while(1){
@@ -147,29 +148,27 @@ int main(void)
 		//		printf("\n\r");
 
 		HAL_ADC_Start_IT(&hadc1);
-		printf("Analog: ");
-		printf(itoa(analog,str,10));
-		printf("\n\r");
+		printf("Analog: %u\n\r", analog);
 
 		// Convert analog (ADC1) to ERPM
-		Vedder_ERPM = convertToERPM(analog) + 800;
-		printf("Vedder ERPM: ");
-		printf(itoa(Vedder_ERPM,str,10));
-		printf("\n\r");
+//		Vedder_ERPM = convertToERPM(analog);
+//		printf("Vedder ERPM: %f\n\r", ERPM);
+
 		Vedder_DutyCycle = convertToDutyCycle(analog);
+		printf("Vedder Duty: %f\n\r", Vedder_DutyCycle);
+
 		send_index = 0;
 		buffer_append_int32(&buffer, (uint32_t)(Vedder_DutyCycle), &send_index);
-		//		buffer_append_int32(&buffer, (uint32_t)(Vedder_ERPM), &send_index);
-		printf("Motor Duty Cycle value: ");
-		printf(itoa(Vedder_DutyCycle, str, 10));
-		printf("\n\r");
+		//buffer_append_int32(&buffer, (uint32_t)(Vedder_ERPM), &send_index);
+
 
 		// Send ERPM on CAN Bus
 		HAL_StatusTypeDef status;
-		hcan1.pTxMsg->IDE = CAN_ID_STD;
+		hcan1.pTxMsg->IDE = CAN_ID_EXT;
 		hcan1.pTxMsg->RTR = CAN_RTR_DATA;
-		hcan1.pTxMsg->StdId = ecoMotion_Throttle;
+		//hcan1.pTxMsg->StdId = 0xFF; // Vedder ID
 		//hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_DUTY << 8) | controller_id;
+		hcan1.pTxMsg->ExtId = ((uint32_t)0 << 8) | controller_id;
 		hcan1.pTxMsg->Data[0] = buffer[0];
 		hcan1.pTxMsg->Data[1] = buffer[1];
 		hcan1.pTxMsg->Data[2] = buffer[2];
@@ -181,7 +180,7 @@ int main(void)
 			printf("\n\r");
 			Error_Handler();
 		}
-		HAL_Delay(1000);
+		HAL_Delay(100);
 
 		/* USER CODE END WHILE */
 
@@ -430,8 +429,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hcan) {
-	printf("Message Sent Successfully: ");
-	printf("\n\r");
+	printf("Message Sent Successfully: Data [0] = %u\n\r", hcan->pTxMsg->Data[0]);
 }
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
 	printf("\n\r");
@@ -644,14 +642,15 @@ double convertToDutyCycle(int ADCIn)
 	double curveOutput = exp(1.0 * CURVEFACTOR * shiftedADCIn / ADCScalingFactor) - 1.0;
 	double normalizedOutput = curveOutput / NORMALFACTOR;
 
-	double current = normalizedOutput * MAXDUTYCYCLE;
+	double duty = normalizedOutput * MAXDUTYCYCLE;
 
-	return current;
+	return duty;
 }
-
+#ifdef _DEBUG_ON
 void __io_putchar(uint8_t ch) { //printf function for USART
 	HAL_UART_Transmit(&huart2, &ch, 1, 1);
 }
+#endif
 static void MX_CAN1_Init(void)
 {
 	__HAL_RCC_CAN1_CLK_ENABLE();
@@ -707,7 +706,7 @@ void Error_Handler(void)
 	do {
 		hcan1.pTxMsg->IDE = CAN_ID_STD;
 		hcan1.pTxMsg->RTR = CAN_RTR_DATA;
-		hcan1.pTxMsg->StdId = ecoMotion_Error - ecoMotion_Throttle;
+		hcan1.pTxMsg->StdId = ecoMotion_Error_Throttle;
 		hcan1.pTxMsg->DLC = 0;
 		status = HAL_CAN_Transmit_IT(&hcan1);
 	} while (status != HAL_OK);

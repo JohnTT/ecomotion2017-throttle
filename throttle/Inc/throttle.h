@@ -8,6 +8,26 @@
 #ifndef THROTTLE_H_
 #define THROTTLE_H_
 
+//#define _CAR 1
+
+#ifdef _CAR
+
+#define _ERRORHANDLER_CAN1TRANSMIT 1
+#define _REBROADCAST_ALLCELL 1
+
+#endif
+
+#ifndef _CAR
+
+#define _DEBUG_ON 1
+
+#ifdef _DEBUG_ON
+#define _REBROADCAST_ALLCELL 1
+#define _CAN_PRINTF 1
+#endif
+
+#endif
+
 typedef enum {
 	CAN_PACKET_SET_DUTY = 0,
 	CAN_PACKET_SET_CURRENT,
@@ -22,10 +42,20 @@ typedef enum {
 } CAN_PACKET_ID;
 
 typedef enum {
-	ecoMotion_Throttle = 0x00,
-	ecoMotion_Master = 0x10,
-	ecoMotion_Display = 0x20,
-	ecoMotion_Error = 0xFF
+	ecoMotion_MotorControl = 0x01,
+	ecoMotion_Speed = 0x02,
+	ecoMotion_FrontWheels = 0x03,
+	ecoMotion_Master_BMS = 0x04,
+	ecoMotion_Humidity = 0x05,
+	ecoMotion_Temperature = 0x06,
+	ecoMotion_Throttle = 0x20,
+	ecoMotion_Master = 0x30,
+	ecoMotion_MasterBMS = 0x31,
+	ecoMotion_MasterRTC = 0x3A,
+	ecoMotion_Display = 0x40,
+	ecoMotion_Error_Throttle = 0xFFF,
+	ecoMotion_Error_Master = 0x0FEF,
+	ecoMotion_Error_Display = 0xFDF,
 } CAN_DEVICE_ID;
 
 void HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hcan);
