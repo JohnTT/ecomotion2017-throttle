@@ -413,7 +413,7 @@ static void MX_USART2_UART_Init(void)
 
 /* USER CODE BEGIN 4 */
 void HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hcan) {
-	printf("Message Sent Successfully: Data [0] = %u\n\r", hcan->pTxMsg->Data[0]);
+	printf("Message Sent Successfully: ID = %lx\n\r", hcan->pTxMsg->IDE == CAN_ID_STD ? hcan->pTxMsg->StdId : hcan->pTxMsg->ExtId);
 }
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
 	HAL_GPIO_WritePin(LEDx_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
