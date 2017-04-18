@@ -180,7 +180,7 @@ int main(void)
 			printf("\n\r");
 			Error_Handler();
 		}
-		HAL_Delay(100);
+		HAL_Delay(10);
 
 		/* USER CODE END WHILE */
 
@@ -410,28 +410,15 @@ static void MX_USART2_UART_Init(void)
 
 }
 
-/** Configure pins as 
- * Analog
- * Input
- * Output
- * EVENT_OUT
- * EXTI
- */
-static void MX_GPIO_Init(void)
-{
-
-	/* GPIO Ports Clock Enable */
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-	__HAL_RCC_GPIOH_CLK_ENABLE();
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-
-}
 
 /* USER CODE BEGIN 4 */
 void HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hcan) {
 	printf("Message Sent Successfully: Data [0] = %u\n\r", hcan->pTxMsg->Data[0]);
 }
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
+	HAL_GPIO_WritePin(LEDx_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
+
+
 	printf("\n\r");
 	printf("Message Received by: ");
 	printf(itoa(hcan->pRxMsg->StdId, str, 10));
@@ -440,6 +427,9 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
 		//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, hcan->pRxMsg->Data[0]);
 		//printf("Good stuff");
 	}
+
+	for (int i = 0; i < 1000; i++) {}
+		HAL_GPIO_WritePin(LEDx_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
 	if (HAL_CAN_Receive_IT(hcan, CAN_FIFO0) != HAL_OK) {
 		Error_Handler();
 	}
@@ -688,6 +678,30 @@ static void MX_CAN1_Init(void)
 	if (HAL_CAN_Receive_IT(&hcan1, CAN_FIFO0) != HAL_OK) {
 		Error_Handler();
 	}
+}
+
+/** Configure pins as
+ * Analog
+ * Input
+ * Output
+ * EVENT_OUT
+ * EXTI
+ */
+static void MX_GPIO_Init(void)
+{
+	GPIO_InitTypeDef GPIO_InitStruct;
+
+	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOH_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+
+	GPIO_InitStruct.Pin = LED0_Pin | LED1_Pin | LED2_Pin | LED3_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(LEDx_GPIO_Port, &GPIO_InitStruct);
+
 }
 /* USER CODE END 4 */
 
