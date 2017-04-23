@@ -5,10 +5,8 @@
  *      Author: Constellations
  */
 
-#ifndef THROTTLE_H_
-#define THROTTLE_H_
 
-//#define _CAR 1
+#define _CAR 1
 
 #ifdef _CAR
 
@@ -27,6 +25,31 @@
 #endif
 
 #endif
+
+
+typedef struct {
+	uint16_t current;
+	uint16_t voltage;
+	uint8_t temperature;
+	uint8_t bat_percentage;
+} masterCAN1_BMSTypeDef;
+
+typedef struct {
+	double current;
+	double voltage;
+	uint8_t temperature;
+	double bat_percentage;
+} displayBMSTypeDef;
+
+typedef struct {
+	uint8_t Year;
+	uint8_t Month;
+	uint8_t Day;
+	uint8_t Hour;
+	uint8_t Minute;
+	uint8_t Second;
+} AllCell_Bat_RTC;
+
 
 typedef enum {
 	CAN_PACKET_SET_DUTY = 0,
@@ -77,4 +100,3 @@ void __io_putchar(uint8_t ch);
 
 
 static const int CAN_ThrottleID;
-#endif /* THROTTLE_H_ */

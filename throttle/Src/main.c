@@ -55,6 +55,8 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
+//AllCell_Bat_RTC displayRTC;
+//displayBMSTypeDef displayBMS;
 
 static float DIAMETER = 0.50; //50 cm diameter
 static float PI = 3.1415926535; //the number pi
@@ -64,7 +66,7 @@ static const int EXPMINADCIN = 1100;
 static const int EXPMAXADCIN = 3000;
 static const int CURVEFACTOR = 3;
 static const double MAXRPM = 29200.0;
-static const double MAXCURRENT = 30.0;
+static const double MAXCURRENT = 5.0;
 static const double MAXDUTYCYCLE = 60.0;
 float rpmChan1; //revolutions per minute for one of the wheels of the vehicle
 float speedChan1; //holds the car's speed from tim1 channel 1
@@ -98,7 +100,18 @@ static void MX_ADC1_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-
+//typedef enum {
+//	CAN_PACKET_SET_DUTY = 0,
+//	CAN_PACKET_SET_CURRENT,
+//	CAN_PACKET_SET_CURRENT_BRAKE,
+//	CAN_PACKET_SET_RPM,
+//	CAN_PACKET_SET_POS,
+//	CAN_PACKET_FILL_RX_BUFFER,
+//	CAN_PACKET_FILL_RX_BUFFER_LONG,
+//	CAN_PACKET_PROCESS_RX_BUFFER,
+//	CAN_PACKET_PROCESS_SHORT_BUFFER,
+//	CAN_PACKET_STATUS
+//} CAN_PACKET_ID;
 /* USER CODE END 0 */
 
 int main(void)
@@ -151,16 +164,21 @@ int main(void)
 		printf("Analog: %u\n\r", analog);
 
 		// Convert analog (ADC1) to ERPM
-//		Vedder_ERPM = convertToERPM(analog);
-//		printf("Vedder ERPM: %f\n\r", ERPM);
+		Vedder_ERPM = convertToERPM(analog);
+		printf("Vedder ERPM: %f\n\r", Vedder_ERPM);
 
-		Vedder_DutyCycle = convertToDutyCycle(analog);
+		//Vedder_DutyCycle = convertToDutyCycle(analog);
 		printf("Vedder Duty: %f\n\r", Vedder_DutyCycle);
 
-		send_index = 0;
-		buffer_append_int32(&buffer, (uint32_t)(Vedder_DutyCycle), &send_index);
-		//buffer_append_int32(&buffer, (uint32_t)(Vedder_ERPM), &send_index);
 
+		Vedder_Current = convertToCurrent(analog);
+		printf("Vedder Current: %f\n\r", Vedder_Current);
+
+		send_index = 0;
+		//buffer_append_int32(&buffer, (uint32_t)(Vedder_DutyCycle), &send_index);
+		//buffer_append_int32(&buffer, (uint32_t)(Vedder_ERPM), &send_index);
+		//buffer_append_int32(&buffer, (uint32_t)(Vedder_Current), &send_index);
+		buffer_append_int32(&buffer, (uint32_t)(Vedder_Current)*1000.0, &send_index);
 
 		// Send ERPM on CAN Bus
 		HAL_StatusTypeDef status;
@@ -168,7 +186,10 @@ int main(void)
 		hcan1.pTxMsg->RTR = CAN_RTR_DATA;
 		//hcan1.pTxMsg->StdId = 0xFF; // Vedder ID
 		//hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_DUTY << 8) | controller_id;
-		hcan1.pTxMsg->ExtId = ((uint32_t)0 << 8) | controller_id;
+		//hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_RPM << 8) | controller_id;
+		const uint8_t CAN_PACKET_SET_CURRENT = 1;
+		hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_CURRENT << 8) | controller_id;
+		//hcan1.pTxMsg->ExtId = ((uint32_t)0 << 8) | controller_id;
 		hcan1.pTxMsg->Data[0] = buffer[0];
 		hcan1.pTxMsg->Data[1] = buffer[1];
 		hcan1.pTxMsg->Data[2] = buffer[2];
@@ -416,9 +437,6 @@ void HAL_CAN_TxCpltCallback(CAN_HandleTypeDef* hcan) {
 	printf("Message Sent Successfully: ID = %lx\n\r", hcan->pTxMsg->IDE == CAN_ID_STD ? hcan->pTxMsg->StdId : hcan->pTxMsg->ExtId);
 }
 void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
-	HAL_GPIO_WritePin(LEDx_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
-
-
 	printf("\n\r");
 	printf("Message Received by: ");
 	printf(itoa(hcan->pRxMsg->StdId, str, 10));
@@ -428,12 +446,54 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
 		//printf("Good stuff");
 	}
 
-	for (int i = 0; i < 1000; i++) {}
-		HAL_GPIO_WritePin(LEDx_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
+
+	if (hcan->pRxMsg->IDE == CAN_ID_STD) {
+		//parseCANMessage(hcan->pRxMsg);
+	}
+
+
+	HAL_GPIO_TogglePin(LEDx_GPIO_Port, LED0_Pin);
 	if (HAL_CAN_Receive_IT(hcan, CAN_FIFO0) != HAL_OK) {
 		Error_Handler();
 	}
 }
+//void parseCANMessage(CanRxMsgTypeDef *pRxMsg) {
+//	static const float _Current_Factor = 0.05;
+//	static const float _Voltage_Factor = 0.05;
+//	static const float _Impedance_Factor = 0.01;
+//	static const float _CellVolt_Factor = 0.01;
+//	static const float _Day_Factor = 0.25;
+//	static const float _Second_Factor = 0.25;
+//	static const float _SOC_Factor = 0.5;
+//	static const float _Capacity_Factor = 0.01;
+//
+//
+//	static const uint16_t _Current_Offset = 1600;
+//	static const uint16_t _Temp_Offset = 40;
+//	static const uint32_t _PwAvailable_Offset = 2000000000;
+//	static const float _Year_Offset = 1985;
+//
+//	masterCAN1_BMSTypeDef bmsBuf;
+//
+//	switch (pRxMsg->StdId) {
+//	case ecoMotion_MasterBMS:
+//		memcpy(&bmsBuf, pRxMsg->Data, sizeof(bmsBuf));
+//		displayBMS.current = bmsBuf.current *_Current_Factor - _Current_Offset;
+//		displayBMS.voltage = bmsBuf.voltage *_Voltage_Factor;
+//		displayBMS.temperature = bmsBuf.temperature - _Temp_Offset;
+//		displayBMS.bat_percentage = bmsBuf.bat_percentage * _SOC_Factor;
+//		break;
+//	case ecoMotion_MasterRTC:
+//		memcpy(&displayRTC, pRxMsg->Data, sizeof(displayRTC));
+//		displayRTC.Day *= _Day_Factor;
+//		displayRTC.Second *= _Second_Factor;
+//		break;
+//	default:
+//		break;
+//	}
+//}
+
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 	//printf("we ADC Convert");
 	analog = HAL_ADC_GetValue(hadc);
@@ -723,6 +783,8 @@ void Error_Handler(void)
 		hcan1.pTxMsg->StdId = ecoMotion_Error_Throttle;
 		hcan1.pTxMsg->DLC = 0;
 		status = HAL_CAN_Transmit_IT(&hcan1);
+		HAL_GPIO_TogglePin(LEDx_GPIO_Port, LED3_Pin);
+		HAL_Delay(100);
 	} while (status != HAL_OK);
 	/* USER CODE END Error_Handler */
 }
