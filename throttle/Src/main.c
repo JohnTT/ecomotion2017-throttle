@@ -68,7 +68,7 @@ static const int CURVEFACTOR = 3;
 static const double MAXRPM = 29200.0;
 static const double MAXCURRENT = 5.0;
 static const double MAXDUTYCYCLE = 60.0;
-static const double MAXPOWER = 300.0
+static const double MAXPOWER = 300.0;
 float rpmChan1; //revolutions per minute for one of the wheels of the vehicle
 float speedChan1; //holds the car's speed from tim1 channel 1
 //float rpmChan2; //revolutions per minute for the other wheel of the vehicle
