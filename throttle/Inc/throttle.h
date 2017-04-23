@@ -96,6 +96,7 @@ void buffer_append_uint32(uint8_t* buffer, uint32_t number, int32_t *index);
 double convertToERPM(int ADCIn);
 double convertToCurrent(int ADCIn);
 double convertToDutyCycle(int ADCIn);
+double convertToPowerCurrent(int ADCIn);
 void __io_putchar(uint8_t ch);
 
 
