@@ -54,9 +54,7 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
-//AllCell_Bat_RTC displayRTC;
-//displayBMSTypeDef displayBMS;
+throttleBMSTypeDef throttleBMS;
 
 static float DIAMETER = 0.50; //50 cm diameter
 static float PI = 3.1415926535; //the number pi
@@ -118,7 +116,7 @@ int main(void)
 {
 
 	/* USER CODE BEGIN 1 */
-	double Vedder_ERPM, Vedder_Current, Vedder_DutyCycle;
+	double Vedder_ERPM, Vedder_Current, Vedder_DutyCycle, Vedder_PowCurrent;
 	int32_t send_index = 0;
 	uint8_t buffer[4];
 	uint8_t controller_id = 0xFF;
@@ -138,15 +136,15 @@ int main(void)
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	MX_CAN1_Init();
-//	MX_TIM1_Init();
+	//	MX_TIM1_Init();
 	MX_USART2_UART_Init();
 	MX_ADC1_Init();
 
 	/* USER CODE BEGIN 2 */
 	HAL_ADC_Start_IT(&hadc1); //commence the ADC for interrupt calculations
-//	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); //look into peripheral control functions to find out more about configuration
-//	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2); //start timer channel 2 for update interrupts
-//	HAL_TIM_Base_Start_IT(&htim1); //start the base for update interrupts
+	//	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1); //look into peripheral control functions to find out more about configuration
+	//	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2); //start timer channel 2 for update interrupts
+	//	HAL_TIM_Base_Start_IT(&htim1); //start the base for update interrupts
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -164,21 +162,26 @@ int main(void)
 		printf("Analog: %u\n\r", analog);
 
 		// Convert analog (ADC1) to ERPM
-		Vedder_ERPM = convertToERPM(analog);
-		printf("Vedder ERPM: %f\n\r", Vedder_ERPM);
+		//		Vedder_ERPM = convertToERPM(analog);
+		//		printf("Vedder ERPM: %f\n\r", Vedder_ERPM);
 
 		//Vedder_DutyCycle = convertToDutyCycle(analog);
-		printf("Vedder Duty: %f\n\r", Vedder_DutyCycle);
+		//printf("Vedder Duty: %f\n\r", Vedder_DutyCycle);
 
 
-		Vedder_Current = convertToCurrent(analog);
-		printf("Vedder Current: %f\n\r", Vedder_Current);
+		//		Vedder_Current = convertToCurrent(analog);
+		//		printf("Vedder Current: %f\n\r", Vedder_Current);
+
+		Vedder_PowCurrent = convertToPowerCurrent(analog);
+		printf("Vedder Power Current: %f\n\r", Vedder_PowCurrent);
 
 		send_index = 0;
 		//buffer_append_int32(&buffer, (uint32_t)(Vedder_DutyCycle), &send_index);
 		//buffer_append_int32(&buffer, (uint32_t)(Vedder_ERPM), &send_index);
-		buffer_append_int32(&buffer, (uint32_t)(Vedder_Current), &send_index);
-		//buffer_append_int32(&buffer, (uint32_t)(Vedder_Current)*1000.0, &send_index);
+		//buffer_append_int32(&buffer, (uint32_t)(Vedder_Current), &send_index);
+
+		buffer_append_int32(&buffer, (uint32_t)(Vedder_PowCurrent), &send_index);
+		//buffer_append_int32(&buffer, (uint32_t)(Vedder_PowCurrent)*1000.0, &send_index);
 
 		// Send ERPM on CAN Bus
 		HAL_StatusTypeDef status;
@@ -187,6 +190,7 @@ int main(void)
 		//hcan1.pTxMsg->StdId = 0xFF; // Vedder ID
 		//hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_DUTY << 8) | controller_id;
 		//hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_RPM << 8) | controller_id;
+
 		const uint8_t CAN_PACKET_SET_CURRENT = 1;
 		hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_CURRENT << 8) | controller_id;
 		//hcan1.pTxMsg->ExtId = ((uint32_t)0 << 8) | controller_id;
@@ -195,7 +199,9 @@ int main(void)
 		hcan1.pTxMsg->Data[2] = buffer[2];
 		hcan1.pTxMsg->Data[3] = buffer[3];
 		hcan1.pTxMsg->DLC = 4;
+#ifdef _CAR
 		status = HAL_CAN_Transmit_IT(&hcan1);
+#endif
 		if (status != HAL_OK) {
 			printf("CAN Transmit Error");
 			printf("\n\r");
@@ -448,7 +454,7 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
 
 
 	if (hcan->pRxMsg->IDE == CAN_ID_STD) {
-		//parseCANMessage(hcan->pRxMsg);
+		parseCANMessage(hcan->pRxMsg);
 	}
 
 
@@ -457,41 +463,36 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
 		Error_Handler();
 	}
 }
-//void parseCANMessage(CanRxMsgTypeDef *pRxMsg) {
-//	static const float _Current_Factor = 0.05;
-//	static const float _Voltage_Factor = 0.05;
-//	static const float _Impedance_Factor = 0.01;
-//	static const float _CellVolt_Factor = 0.01;
-//	static const float _Day_Factor = 0.25;
-//	static const float _Second_Factor = 0.25;
-//	static const float _SOC_Factor = 0.5;
-//	static const float _Capacity_Factor = 0.01;
-//
-//
-//	static const uint16_t _Current_Offset = 1600;
-//	static const uint16_t _Temp_Offset = 40;
-//	static const uint32_t _PwAvailable_Offset = 2000000000;
-//	static const float _Year_Offset = 1985;
-//
-//	masterCAN1_BMSTypeDef bmsBuf;
-//
-//	switch (pRxMsg->StdId) {
-//	case ecoMotion_MasterBMS:
-//		memcpy(&bmsBuf, pRxMsg->Data, sizeof(bmsBuf));
-//		displayBMS.current = bmsBuf.current *_Current_Factor - _Current_Offset;
-//		displayBMS.voltage = bmsBuf.voltage *_Voltage_Factor;
-//		displayBMS.temperature = bmsBuf.temperature - _Temp_Offset;
-//		displayBMS.bat_percentage = bmsBuf.bat_percentage * _SOC_Factor;
-//		break;
-//	case ecoMotion_MasterRTC:
-//		memcpy(&displayRTC, pRxMsg->Data, sizeof(displayRTC));
-//		displayRTC.Day *= _Day_Factor;
-//		displayRTC.Second *= _Second_Factor;
-//		break;
-//	default:
-//		break;
-//	}
-//}
+void parseCANMessage(CanRxMsgTypeDef *pRxMsg) {
+	static const float _Current_Factor = 0.05;
+	static const float _Voltage_Factor = 0.05;
+	static const float _Impedance_Factor = 0.01;
+	static const float _CellVolt_Factor = 0.01;
+	static const float _Day_Factor = 0.25;
+	static const float _Second_Factor = 0.25;
+	static const float _SOC_Factor = 0.5;
+	static const float _Capacity_Factor = 0.01;
+
+
+	static const uint16_t _Current_Offset = 1600;
+	static const uint16_t _Temp_Offset = 40;
+	static const uint32_t _PwAvailable_Offset = 2000000000;
+	static const float _Year_Offset = 1985;
+
+	masterCAN1_BMSTypeDef bmsBuf;
+
+	switch (pRxMsg->StdId) {
+	case ecoMotion_MasterBMS:
+		memcpy(&bmsBuf, pRxMsg->Data, sizeof(bmsBuf));
+		throttleBMS.current = bmsBuf.current *_Current_Factor - _Current_Offset;
+		throttleBMS.voltage = bmsBuf.voltage *_Voltage_Factor;
+		throttleBMS.temperature = bmsBuf.temperature - _Temp_Offset;
+		throttleBMS.bat_percentage = bmsBuf.bat_percentage * _SOC_Factor;
+		break;
+	default:
+		break;
+	}
+}
 
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
@@ -698,21 +699,26 @@ double convertToDutyCycle(int ADCIn)
 }
 double convertToPowerCurrent(int ADCIn)
 {
-    int ADCScalingFactor = EXPMAXADCIN - EXPMINADCIN;
+	int ADCScalingFactor = EXPMAXADCIN - EXPMINADCIN;
+	static double voltage = 48.0; // switch to parse can commit
 	double NORMALFACTOR = exp(CURVEFACTOR);
-    int shiftedADCIn = ADCIn - EXPMINADCIN;
-    if (ADCIn < EXPMINADCIN)
-        return 0.0;
-    else if (ADCIn > EXPMAXADCIN)
-        return MAXCURRENT;
-    double curveOutput = exp(1.0 * CURVEFACTOR * shiftedADCIn / ADCScalingFactor) - 1.0;
-    double normalizedOutput = curveOutput / NORMALFACTOR;
 
-    double power = normalizedOutput * MAXPOWER;
-    double voltage = 48.0; // switch to parse can commit
+	if (throttleBMS.voltage > 10.0)
+		voltage = throttleBMS.voltage;
 
-    double current = power / voltage;
-    return current;
+
+	int shiftedADCIn = ADCIn - EXPMINADCIN;
+	if (ADCIn < EXPMINADCIN)
+		return 0.0;
+	else if (ADCIn > EXPMAXADCIN)
+		return MAXPOWER / voltage;
+	double curveOutput = exp(1.0 * CURVEFACTOR * shiftedADCIn / ADCScalingFactor) - 1.0;
+	double normalizedOutput = curveOutput / NORMALFACTOR;
+
+	double power = normalizedOutput * MAXPOWER;
+
+	double current = power / voltage;
+	return current;
 }
 
 #ifdef _DEBUG_ON

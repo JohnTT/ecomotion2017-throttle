@@ -26,6 +26,18 @@
 
 #endif
 
+typedef enum {
+	CAN_PACKET_SET_DUTY = 0,
+	CAN_PACKET_SET_CURRENT,
+	CAN_PACKET_SET_CURRENT_BRAKE,
+	CAN_PACKET_SET_RPM,
+	CAN_PACKET_SET_POS,
+	CAN_PACKET_FILL_RX_BUFFER,
+	CAN_PACKET_FILL_RX_BUFFER_LONG,
+	CAN_PACKET_PROCESS_RX_BUFFER,
+	CAN_PACKET_PROCESS_SHORT_BUFFER,
+	CAN_PACKET_STATUS
+} CAN_PACKET_ID;
 
 typedef struct {
 	uint16_t current;
@@ -39,7 +51,7 @@ typedef struct {
 	double voltage;
 	uint8_t temperature;
 	double bat_percentage;
-} displayBMSTypeDef;
+} throttleBMSTypeDef;
 
 typedef struct {
 	uint8_t Year;
@@ -49,20 +61,6 @@ typedef struct {
 	uint8_t Minute;
 	uint8_t Second;
 } AllCell_Bat_RTC;
-
-
-typedef enum {
-	CAN_PACKET_SET_DUTY = 0,
-	CAN_PACKET_SET_CURRENT,
-	CAN_PACKET_SET_CURRENT_BRAKE,
-	CAN_PACKET_SET_RPM,
-	CAN_PACKET_SET_POS,
-	CAN_PACKET_FILL_RX_BUFFER,
-	CAN_PACKET_FILL_RX_BUFFER_LONG,
-	CAN_PACKET_PROCESS_RX_BUFFER,
-	CAN_PACKET_PROCESS_SHORT_BUFFER,
-	CAN_PACKET_STATUS
-} CAN_PACKET_ID;
 
 typedef enum {
 	ecoMotion_MotorControl = 0x01,
@@ -97,6 +95,7 @@ double convertToERPM(int ADCIn);
 double convertToCurrent(int ADCIn);
 double convertToDutyCycle(int ADCIn);
 double convertToPowerCurrent(int ADCIn);
+void parseCANMessage(CanRxMsgTypeDef *pRxMsg);
 void __io_putchar(uint8_t ch);
 
 
