@@ -114,7 +114,6 @@ static void MX_ADC1_Init(void);
 //	CAN_PACKET_STATUS
 //} CAN_PACKET_ID;
 /* USER CODE END 0 */
-
 int main(void)
 {
 
@@ -178,8 +177,8 @@ int main(void)
 		send_index = 0;
 		//buffer_append_int32(&buffer, (uint32_t)(Vedder_DutyCycle), &send_index);
 		//buffer_append_int32(&buffer, (uint32_t)(Vedder_ERPM), &send_index);
-		//buffer_append_int32(&buffer, (uint32_t)(Vedder_Current), &send_index);
-		buffer_append_int32(&buffer, (uint32_t)(Vedder_Current)*1000.0, &send_index);
+		buffer_append_int32(&buffer, (uint32_t)(Vedder_Current), &send_index);
+		//buffer_append_int32(&buffer, (uint32_t)(Vedder_Current)*1000.0, &send_index);
 
 		// Send ERPM on CAN Bus
 		HAL_StatusTypeDef status;
