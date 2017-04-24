@@ -66,7 +66,7 @@ static const int CURVEFACTOR = 3;
 static const double MAXRPM = 29200.0;
 static const double MAXCURRENT = 5.0;
 static const double MAXDUTYCYCLE = 60.0;
-static const double MAXPOWER = 300.0;
+static const double MAXPOWER = 2500.0;
 float rpmChan1; //revolutions per minute for one of the wheels of the vehicle
 float speedChan1; //holds the car's speed from tim1 channel 1
 //float rpmChan2; //revolutions per minute for the other wheel of the vehicle
@@ -152,6 +152,7 @@ int main(void)
 	HAL_Delay(1000);
 	printf("we Start");
 	printf("\n\r");
+	throttleBMS.voltage = 0.0;
 	while(1){
 		// Timer Counter
 		//		printf("Counter value: ");
@@ -162,15 +163,15 @@ int main(void)
 		printf("Analog: %u\n\r", analog);
 
 		// Convert analog (ADC1) to ERPM
-		//		Vedder_ERPM = convertToERPM(analog);
-		//		printf("Vedder ERPM: %f\n\r", Vedder_ERPM);
+		//Vedder_ERPM = convertToERPM(analog);
+		//printf("Vedder ERPM: %f\n\r", Vedder_ERPM);
 
 		//Vedder_DutyCycle = convertToDutyCycle(analog);
 		//printf("Vedder Duty: %f\n\r", Vedder_DutyCycle);
 
 
-		//		Vedder_Current = convertToCurrent(analog);
-		//		printf("Vedder Current: %f\n\r", Vedder_Current);
+		//Vedder_Current = convertToCurrent(analog);
+		//printf("Vedder Current: %f\n\r", Vedder_Current);
 
 		Vedder_PowCurrent = convertToPowerCurrent(analog);
 		printf("Vedder Power Current: %f\n\r", Vedder_PowCurrent);
@@ -180,33 +181,37 @@ int main(void)
 		//buffer_append_int32(&buffer, (uint32_t)(Vedder_ERPM), &send_index);
 		//buffer_append_int32(&buffer, (uint32_t)(Vedder_Current), &send_index);
 
-		buffer_append_int32(&buffer, (uint32_t)(Vedder_PowCurrent), &send_index);
-		//buffer_append_int32(&buffer, (uint32_t)(Vedder_PowCurrent)*1000.0, &send_index);
+		//buffer_append_int32(&buffer, (uint32_t)(Vedder_PowCurrent), &send_index);
+		buffer_append_int32(&buffer, (uint32_t)((Vedder_PowCurrent)*1000.0), &send_index);
 
 		// Send ERPM on CAN Bus
 		HAL_StatusTypeDef status;
 		hcan1.pTxMsg->IDE = CAN_ID_EXT;
 		hcan1.pTxMsg->RTR = CAN_RTR_DATA;
+		const uint8_t CAN_PACKET_SET_CURRENT = 1;
 		//hcan1.pTxMsg->StdId = 0xFF; // Vedder ID
 		//hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_DUTY << 8) | controller_id;
 		//hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_RPM << 8) | controller_id;
 
-		const uint8_t CAN_PACKET_SET_CURRENT = 1;
+
 		hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_CURRENT << 8) | controller_id;
 		//hcan1.pTxMsg->ExtId = ((uint32_t)0 << 8) | controller_id;
 		hcan1.pTxMsg->Data[0] = buffer[0];
 		hcan1.pTxMsg->Data[1] = buffer[1];
 		hcan1.pTxMsg->Data[2] = buffer[2];
 		hcan1.pTxMsg->Data[3] = buffer[3];
+
+		printf("buffer 0: %d\n\r buffer 1: %d\n\r buffer 2: %d\n\rbuffer 3:%d\n\r", buffer[0], buffer[1], buffer[2], buffer[3]);
 		hcan1.pTxMsg->DLC = 4;
-#ifdef _CAR
+//#ifdef _CAR
 		status = HAL_CAN_Transmit_IT(&hcan1);
-#endif
+//#endif
 		if (status != HAL_OK) {
 			printf("CAN Transmit Error");
 			printf("\n\r");
 			Error_Handler();
 		}
+		printf("\n\r");
 		HAL_Delay(10);
 
 		/* USER CODE END WHILE */
@@ -447,10 +452,6 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
 	printf("Message Received by: ");
 	printf(itoa(hcan->pRxMsg->StdId, str, 10));
 	printf("\n\r");
-	if (hcan->pRxMsg->StdId == 0x124) {
-		//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, hcan->pRxMsg->Data[0]);
-		//printf("Good stuff");
-	}
 
 
 	if (hcan->pRxMsg->IDE == CAN_ID_STD) {
@@ -458,7 +459,7 @@ void HAL_CAN_RxCpltCallback(CAN_HandleTypeDef* hcan) {
 	}
 
 
-	HAL_GPIO_TogglePin(LEDx_GPIO_Port, LED0_Pin);
+	//HAL_GPIO_TogglePin(LEDx_GPIO_Port, LED0_Pin);
 	if (HAL_CAN_Receive_IT(hcan, CAN_FIFO0) != HAL_OK) {
 		Error_Handler();
 	}
@@ -484,6 +485,7 @@ void parseCANMessage(CanRxMsgTypeDef *pRxMsg) {
 	switch (pRxMsg->StdId) {
 	case ecoMotion_MasterBMS:
 		memcpy(&bmsBuf, pRxMsg->Data, sizeof(bmsBuf));
+		HAL_GPIO_TogglePin(LEDx_GPIO_Port, LED3_Pin);
 		throttleBMS.current = bmsBuf.current *_Current_Factor - _Current_Offset;
 		throttleBMS.voltage = bmsBuf.voltage *_Voltage_Factor;
 		throttleBMS.temperature = bmsBuf.temperature - _Temp_Offset;
@@ -703,7 +705,7 @@ double convertToPowerCurrent(int ADCIn)
 	static double voltage = 48.0; // switch to parse can commit
 	double NORMALFACTOR = exp(CURVEFACTOR);
 
-	if (throttleBMS.voltage > 10.0)
+	if (throttleBMS.voltage > 10.0 && throttleBMS.voltage < 60.0)
 		voltage = throttleBMS.voltage;
 
 
@@ -801,16 +803,18 @@ void Error_Handler(void)
 	/* User can add his own implementation to report the HAL error return state */
 	printf("PROBLEMS!");
 	printf("\n\r");
-	HAL_StatusTypeDef status;
-	do {
-		hcan1.pTxMsg->IDE = CAN_ID_STD;
-		hcan1.pTxMsg->RTR = CAN_RTR_DATA;
-		hcan1.pTxMsg->StdId = ecoMotion_Error_Throttle;
-		hcan1.pTxMsg->DLC = 0;
-		status = HAL_CAN_Transmit_IT(&hcan1);
-		HAL_GPIO_TogglePin(LEDx_GPIO_Port, LED3_Pin);
-		HAL_Delay(100);
-	} while (status != HAL_OK);
+	HAL_NVIC_SystemReset();
+//	HAL_StatusTypeDef status;
+//	do {
+//
+//		hcan1.pTxMsg->IDE = CAN_ID_STD;
+//		hcan1.pTxMsg->RTR = CAN_RTR_DATA;
+//		hcan1.pTxMsg->StdId = ecoMotion_Error_Throttle;
+//		hcan1.pTxMsg->DLC = 0;
+//		status = HAL_CAN_Transmit_IT(&hcan1);
+//		//HAL_GPIO_TogglePin(LEDx_GPIO_Port, LED3_Pin);
+//		//HAL_Delay(100);
+//	} while (status != HAL_OK);
 	/* USER CODE END Error_Handler */
 }
 
