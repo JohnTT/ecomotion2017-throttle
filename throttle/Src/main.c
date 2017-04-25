@@ -67,6 +67,8 @@ static const double MAXRPM = 29200.0;
 static const double MAXCURRENT = 5.0;
 static const double MAXDUTYCYCLE = 60.0;
 static const double MAXPOWER = 2500.0;
+static const double MAXCURRENTRAMP = 2.0;
+static double lastCurrent = 0.0;
 float rpmChan1; //revolutions per minute for one of the wheels of the vehicle
 float speedChan1; //holds the car's speed from tim1 channel 1
 //float rpmChan2; //revolutions per minute for the other wheel of the vehicle
@@ -117,6 +119,7 @@ int main(void)
 
 	/* USER CODE BEGIN 1 */
 	double Vedder_ERPM, Vedder_Current, Vedder_DutyCycle, Vedder_PowCurrent;
+	double tmp;
 	int32_t send_index = 0;
 	uint8_t buffer[4];
 	uint8_t controller_id = 0xFF;
@@ -176,6 +179,10 @@ int main(void)
 		Vedder_PowCurrent = convertToPowerCurrent(analog);
 		printf("Vedder Power Current: %f\n\r", Vedder_PowCurrent);
 
+		tmp = Vedder_PowCurrent;
+		Vedder_PowCurrent = limitCurrent(tmp);
+		printf("Vedder Ramp Power Current: %f\n\r", Vedder_PowCurrent);
+
 		send_index = 0;
 		//buffer_append_int32(&buffer, (uint32_t)(Vedder_DutyCycle), &send_index);
 		//buffer_append_int32(&buffer, (uint32_t)(Vedder_ERPM), &send_index);
@@ -188,6 +195,8 @@ int main(void)
 		HAL_StatusTypeDef status;
 		hcan1.pTxMsg->IDE = CAN_ID_EXT;
 		hcan1.pTxMsg->RTR = CAN_RTR_DATA;
+
+
 		const uint8_t CAN_PACKET_SET_CURRENT = 1;
 		//hcan1.pTxMsg->StdId = 0xFF; // Vedder ID
 		//hcan1.pTxMsg->ExtId = ((uint32_t)CAN_PACKET_SET_DUTY << 8) | controller_id;
@@ -203,9 +212,7 @@ int main(void)
 
 		printf("buffer 0: %d\n\r buffer 1: %d\n\r buffer 2: %d\n\rbuffer 3:%d\n\r", buffer[0], buffer[1], buffer[2], buffer[3]);
 		hcan1.pTxMsg->DLC = 4;
-//#ifdef _CAR
 		status = HAL_CAN_Transmit_IT(&hcan1);
-//#endif
 		if (status != HAL_OK) {
 			printf("CAN Transmit Error");
 			printf("\n\r");
@@ -721,6 +728,13 @@ double convertToPowerCurrent(int ADCIn)
 
 	double current = power / voltage;
 	return current;
+}
+double limitCurrent(double nowCurrent) {
+	if (nowCurrent - lastCurrent > MAXCURRENTRAMP) {
+		lastCurrent += MAXCURRENTRAMP;
+		return lastCurrent;
+	}
+	return nowCurrent;
 }
 
 #ifdef _DEBUG_ON

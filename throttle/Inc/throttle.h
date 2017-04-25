@@ -95,6 +95,7 @@ double convertToERPM(int ADCIn);
 double convertToCurrent(int ADCIn);
 double convertToDutyCycle(int ADCIn);
 double convertToPowerCurrent(int ADCIn);
+double limitCurrent(double nowCurrent);
 void parseCANMessage(CanRxMsgTypeDef *pRxMsg);
 void __io_putchar(uint8_t ch);
 
